@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>平行四邊形分割與三角形面積關係</title>
+  <style>
+    :root {
+      --paper: #fff6df;
+      --ink: #17324d;
+      --muted: #3f5b78;
+      --side-0: #0057ff;
+      --height: #ff3b00;
+      --primary: #00a86b;
+      --reset: #ff5a7a;
+      --shadow: 0 10px 28px rgba(23, 50, 77, 0.12);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% -10%, #9be7ff 0%, transparent 34%),
+        radial-gradient(circle at 92% 0%, #ffd36b 0%, transparent 32%),
+        radial-gradient(circle at 80% 100%, #ff9ad5 0%, transparent 36%),
+        linear-gradient(135deg, #7ee0c8 0%, #89c8ff 42%, #ffd27a 100%);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+    }
+
+    .app {
+      height: 100%;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding:
+        max(8px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(8px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
+    }
+
+    .rotate-tip {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #17324d;
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      margin: 0 0 2px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.04em;
+    }
+
+    .steps {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .steps li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      font-weight: 800;
+      font-size: 15px;
+      border: 2px solid transparent;
+      color: var(--muted);
+    }
+
+    .steps li span {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .steps li[data-step="1"].is-active { background: var(--side-0); color: #fff; border-color: var(--side-0); }
+    .steps li[data-step="2"].is-active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.35;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .hint b { font-weight: 900; }
+    .c-blue { color: var(--side-0); }
+    .c-green { color: var(--primary); }
+    .c-red { color: var(--height); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .btn {
+      appearance: none;
+      border: 2px solid #d7e6f3;
+      background: #fff;
+      color: var(--ink);
+      border-radius: 14px;
+      min-height: 46px;
+      padding: 0 16px;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn[hidden] { display: none !important; }
+
+    #btnReset { border-color: var(--reset); color: var(--reset); background: #ffe5ec; }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      min-width: 110px;
+    }
+
+    .btn-action {
+      background: #d97706;
+      border-color: #d97706;
+      color: #fff;
+    }
+
+    .btn-tip {
+      background: #f59e0b;
+      border-color: #d97706;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .workspace {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid #fff;
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .card[hidden] { display: none !important; }
+    .card h2 { margin: 0 0 10px; font-size: 16px; color: var(--ink); }
+
+    .tip-box {
+      margin-top: 12px;
+      padding: 12px;
+      background: #fffbe3;
+      border-radius: 12px;
+      border: 2px dashed #f59e0b;
+      font-weight: 800;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #92400e;
+    }
+
+    .paper-wrap {
+      min-height: 0;
+      height: 100%;
+      background: var(--paper);
+      border: 4px solid #fff;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: var(--shadow), inset 0 0 0 2px #ffbf66;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    @media (orientation: portrait) {
+      .rotate-tip { display: flex; }
+      .toolbar, .workspace { display: flex; flex-direction: column; }
+      .paper-wrap { min-height: 420px; }
+    }
+
+    @media (orientation: landscape) {
+      h1 { font-size: 22px; }
+      .eyebrow { margin: 0; }
+      .hint { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="rotate-tip">請把裝置橫放以獲得最佳體驗。</div>
+    <header class="header">
+      <div>
+        <p class="eyebrow">小學五年級 面積探究</p>
+        <h1>平行四邊形與三角形面積關係</h1>
+      </div>
+      <ol class="steps" id="steps">
+        <li data-step="1" class="is-active"><span>1</span>畫平行四邊形</li>
+        <li data-step="2"><span>2</span>分割與驗證</li>
+      </ol>
+    </header>
+
+    <div class="toolbar">
+      <p class="hint" id="hint" aria-live="polite">請在方格紙上點擊 4 個點製作一個平行四邊形。</p>
+      <div class="actions">
+        <button type="button" id="btnReset" class="btn">重設</button>
+        <button type="button" id="btnDoCut" class="btn btn-action" hidden>沿線分割</button>
+        <button type="button" id="btnResplit" class="btn btn-action" hidden>重新分割</button>
+        <button type="button" id="btnTip" class="btn btn-tip" hidden>💡 錦囊</button>
+        <button type="button" id="btnNext" class="btn btn-primary" disabled>下一步</button>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <aside class="panel">
+        <section class="card" id="cardStep1">
+          <h2>頂點數量</h2>
+          <div style="font-size: 22px; font-weight: 900;" id="mPoints">0 / 4</div>
+        </section>
+
+        <section class="card" id="cardStep2" hidden>
+          <h2>探究活動</h2>
+          <p style="font-size: 15px; font-weight: 800; line-height: 1.5; margin: 0 0 10px;">
+            請根據畫面的分割與驗證結果，完成<b>分組紀錄</b>上的內容。
+          </p>
+          <div class="tip-box" id="tipBox" hidden>
+            💡 <b>錦囊提示：</b><br>
+            把一個平行四邊形<b style="color: var(--height); text-decoration: underline;">等分成2個</b>完全相同的三角形。
+          </div>
+        </section>
+      </aside>
+
+      <div class="paper-wrap">
+        <canvas id="canvas" role="application" aria-label="方格紙"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const COLORS = {
+        paper: "#fff6df",
+        grid: "#f0c27a",
+        gridBold: "#e3942c",
+        ink: "#17324d",
+        paraFill: "rgba(0, 87, 255, 0.18)",
+        paraStroke: "#0057ff",
+        pieceA: "rgba(0, 87, 255, 0.8)",     // 80% 透明度 藍
+        pieceB: "rgba(255, 105, 180, 0.8)",   // 80% 透明度 粉紅 (#ff69b4)
+        strokeA: "#0057ff",
+        strokeB: "#e91e63",                  // 深粉紅邊框
+        ghost: "rgba(0, 87, 255, 0.4)",
+        cutLine: "#d100ff"
+      };
+
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const hintEl = document.getElementById("hint");
+      const btnReset = document.getElementById("btnReset");
+      const btnNext = document.getElementById("btnNext");
+      const btnDoCut = document.getElementById("btnDoCut");
+      const btnResplit = document.getElementById("btnResplit");
+      const btnTip = document.getElementById("btnTip");
+      const tipBox = document.getElementById("tipBox");
+
+      const cardStep1 = document.getElementById("cardStep1");
+      const cardStep2 = document.getElementById("cardStep2");
+      const mPoints = document.getElementById("mPoints");
+      const stepEls = [...document.querySelectorAll(".steps li")];
+
+      const state = {
+        step: 1,
+        cols: 16,
+        rows: 10,
+        cell: 40,
+        originX: 24,
+        originY: 24,
+
+        points: [],
+        cutPoints: [],
+        isSplit: false,
+        isCongruent: false,
+        isSnapped: false,
+        showTip: false,
+        pieces: [],
+
+        drag: null,
+        pointerId: null
+      };
+
+      function init() {
+        window.addEventListener("resize", onResize);
+        canvas.addEventListener("pointerdown", onPointerDown);
+        canvas.addEventListener("pointermove", onPointerMove);
+        canvas.addEventListener("pointerup", onPointerUp);
+        canvas.addEventListener("pointercancel", onPointerUp);
+
+        btnReset.addEventListener("click", resetAll);
+        btnNext.addEventListener("click", goNext);
+        btnDoCut.addEventListener("click", executeCut);
+        btnResplit.addEventListener("click", resetSplit);
+        btnTip.addEventListener("click", toggleTip);
+
+        onResize();
+        resetAll();
+      }
+
+      function resetAll() {
+        state.step = 1;
+        state.points = [];
+        state.cutPoints = [];
+        state.isSplit = false;
+        state.isCongruent = false;
+        state.isSnapped = false;
+        state.showTip = false;
+        state.pieces = [];
+        state.drag = null;
+        state.pointerId = null;
+
+        updateUI();
+        draw();
+      }
+
+      function onResize() {
+        const wrap = canvas.parentElement;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const cssW = Math.max(1, wrap.clientWidth);
+        const cssH = Math.max(1, wrap.clientHeight);
+        if (cssW < 20 || cssH < 20) return;
+
+        canvas.width = Math.floor(cssW * dpr);
+        canvas.height = Math.floor(cssH * dpr);
+        canvas.style.width = `${cssW}px`;
+        canvas.style.height = `${cssH}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const pad = 18;
+        const cell = Math.max(28, Math.min(48, Math.floor(Math.min((cssW - pad * 2) / 16, (cssH - pad * 2) / 10))));
+        state.cols = Math.max(8, Math.floor((cssW - pad * 2) / cell));
+        state.rows = Math.max(6, Math.floor((cssH - pad * 2) / cell));
+        state.cell = cell;
+        state.originX = Math.floor((cssW - state.cols * cell) / 2);
+        state.originY = Math.floor((cssH - state.rows * cell) / 2);
+
+        draw();
+      }
+
+      function gridToPx(c, r) {
+        return { x: state.originX + c * state.cell, y: state.originY + r * state.cell };
+      }
+
+      function eventPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+
+      function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+      function normAng(a) {
+        let x = a;
+        while (x > Math.PI) x -= Math.PI * 2;
+        while (x < -Math.PI) x += Math.PI * 2;
+        return x;
+      }
+
+      function alignGridPoint(p) {
+        const rawC = (p.x - state.originX) / state.cell;
+        const rawR = (p.y - state.originY) / state.cell;
+        if (rawC < -0.4 || rawR < -0.4 || rawC > state.cols + 0.4 || rawR > state.rows + 0.4) return null;
+        return {
+          c: clamp(Math.round(rawC), 0, state.cols),
+          r: clamp(Math.round(rawR), 0, state.rows)
+        };
+      }
+
+      function isParallelogram(pts) {
+        if (pts.length !== 4) return false;
+        const [A, B, C, D] = pts;
+        const vecAB = { c: B.c - A.c, r: B.r - A.r };
+        const vecDC = { c: C.c - D.c, r: C.r - D.r };
+        const isParallelEqual = (vecAB.c === vecDC.c && vecAB.r === vecDC.r);
+        const area = Math.abs((B.c - A.c) * (D.r - A.r) - (D.c - A.c) * (B.r - A.r));
+        return isParallelEqual && area > 0;
+      }
+
+      function getGhostPoint(pts) {
+        if (pts.length !== 3) return null;
+        const [A, B, C] = pts;
+        return { c: C.c - B.c + A.c, r: C.r - B.r + A.r };
+      }
+
+      function toggleTip() {
+        state.showTip = !state.showTip;
+        tipBox.hidden = !state.showTip;
+      }
+
+      function updateUI() {
+        stepEls.forEach((el) => {
+          const s = parseInt(el.dataset.step, 10);
+          el.classList.toggle("is-active", s === state.step);
+        });
+
+        mPoints.textContent = `${state.points.length} / 4`;
+
+        btnDoCut.hidden = true;
+        btnResplit.hidden = true;
+        btnTip.hidden = true;
+        tipBox.hidden = !state.showTip;
+
+        if (state.step === 1) {
+          cardStep1.hidden = false;
+          cardStep2.hidden = true;
+
+          const ok = isParallelogram(state.points);
+          if (state.points.length < 4) {
+            hintEl.innerHTML = `請在方格紙上點擊第 <b>${state.points.length + 1}</b> 個點製作平行四邊形。`;
+            btnNext.disabled = true;
+          } else if (ok) {
+            hintEl.innerHTML = `<b class="c-green">太棒了！</b>這是一個平行四邊形。請點擊「下一步」。`;
+            btnNext.disabled = false;
+          } else {
+            hintEl.innerHTML = `<b class="c-red">這不是平行四邊形！</b>請拖動頂點，使兩組對邊平行且兩組對邊長度相等。`;
+            btnNext.disabled = true;
+          }
+          btnNext.textContent = "下一步";
+        } 
+        else if (state.step === 2) {
+          cardStep1.hidden = true;
+          cardStep2.hidden = false;
+
+          btnNext.disabled = true;
+          btnNext.textContent = "已完成";
+
+          if (!state.isSplit) {
+            if (state.cutPoints.length < 2) {
+              hintEl.innerHTML = `請在圖形上<b>選取 2 個點</b>畫出連線，嘗試進行分割。`;
+            } else {
+              hintEl.innerHTML = `已選擇 2 個點！請點擊上方<b>「沿線分割」</b>按鈕。`;
+              btnDoCut.hidden = false;
+            }
+          } else {
+            if (state.isCongruent) {
+              if (state.isSnapped) {
+                hintEl.innerHTML = `你成功把一個平行四邊形分割成2個面積相同的三角形，那平行四邊形和三角形的面積有甚麼關係呢？`;
+                btnTip.hidden = false;
+              } else {
+                hintEl.innerHTML = `請<b>旋轉並拖曳</b>粉紅色或藍色三角形，嘗試將它們重疊。`;
+              }
+            } else {
+              hintEl.innerHTML = `<b class="c-red" style="font-size:18px;">這2個三角形不是完全相同</b>`;
+              btnResplit.hidden = false;
+            }
+          }
+        }
+      }
+
+      function goNext() {
+        if (state.step === 1 && isParallelogram(state.points)) {
+          state.step = 2;
+        }
+        updateUI();
+        draw();
+      }
+
+      function executeCut() {
+        if (state.cutPoints.length < 2) return;
+
+        const [P1, P2] = state.cutPoints;
+        const [A, B, C, D] = state.points;
+
+        const isAC = (samePt(P1, A) && samePt(P2, C)) || (samePt(P1, C) && samePt(P2, A));
+        const isBD = (samePt(P1, B) && samePt(P2, D)) || (samePt(P1, D) && samePt(P2, B));
+
+        state.isSplit = true;
+
+        if (isAC) {
+          state.isCongruent = true;
+          createPieces([A, B, C], [C, D, A]);
+        } else if (isBD) {
+          state.isCongruent = true;
+          createPieces([A, B, D], [B, C, D]);
+        } else {
+          state.isCongruent = false;
+          createNonCongruentPieces(P1, P2);
+        }
+
+        updateUI();
+        draw();
+      }
+
+      function samePt(p1, p2) {
+        return p1.c === p2.c && p1.r === p2.r;
+      }
+
+      function createPieces(ptsA, ptsB) {
+        const makePiece = (id, pts, fill, stroke) => {
+          const cen = {
+            c: (pts[0].c + pts[1].c + pts[2].c) / 3,
+            r: (pts[0].r + pts[1].r + pts[2].r) / 3
+          };
+          const local = pts.map(p => ({ c: p.c - cen.c, r: p.r - cen.r }));
+          return { id, local, pos: { ...cen }, rot: 0, fill, stroke };
+        };
+
+        state.pieces = [
+          makePiece("a", ptsA, COLORS.pieceA, COLORS.strokeA),
+          makePiece("b", ptsB, COLORS.pieceB, COLORS.strokeB)
+        ];
+
+        state.pieces[1].pos.c += 2.5;
+        state.pieces[1].pos.r += 0.5;
+      }
+
+      function createNonCongruentPieces(P1, P2) {
+        const [A, B, C, D] = state.points;
+        const pA = [A, B, P2, P1];
+        const pB = [P1, P2, C, D];
+
+        const getCen = (pts) => ({
+          c: pts.reduce((s, p) => s + p.c, 0) / pts.length,
+          r: pts.reduce((s, p) => s + p.r, 0) / pts.length
+        });
+
+        const cenA = getCen(pA);
+        const cenB = getCen(pB);
+
+        state.pieces = [
+          { id: "a", local: pA.map(p => ({ c: p.c - cenA.c, r: p.r - cenA.r })), pos: { ...cenA }, rot: 0, fill: COLORS.pieceA, stroke: COLORS.strokeA },
+          { id: "b", local: pB.map(p => ({ c: p.c - cenB.c, r: p.r - cenB.r })), pos: { ...cenB }, rot: 0, fill: COLORS.pieceB, stroke: COLORS.strokeB }
+        ];
+
+        state.pieces[1].pos.c += 2.5;
+      }
+
+      function resetSplit() {
+        state.cutPoints = [];
+        state.isSplit = false;
+        state.isCongruent = false;
+        state.isSnapped = false;
+        state.showTip = false;
+        state.pieces = [];
+        updateUI();
+        draw();
+      }
+
+      function worldGrid(piece, pos = piece.pos, rot = piece.rot) {
+        return piece.local.map((p) => {
+          const cos = Math.cos(rot);
+          const sin = Math.sin(rot);
+          const qc = p.c * cos - p.r * sin;
+          const qr = p.c * sin + p.r * cos;
+          return { c: pos.c + qc, r: pos.r + qr };
+        });
+      }
+
+      function worldPx(piece, pos = piece.pos, rot = piece.rot) {
+        return worldGrid(piece, pos, rot).map((g) => gridToPx(g.c, g.r));
+      }
+
+      // 支援雙向動態檢測與磁吸
+      function checkSnap() {
+        if (!state.isSplit || !state.isCongruent) return;
+
+        const pA = state.pieces[0];
+        const pB = state.pieces[1];
+        if (!pA || !pB) return;
+
+        // 判斷當前被拖曳的圖形
+        const moving = (state.drag && state.drag.piece) ? state.drag.piece : pB;
+        const other = (moving === pA) ? pB : pA;
+
+        const vOther = worldGrid(other);
+        let bestSnap = null;
+
+        for (let shift = 0; shift < 3; shift++) {
+          const targetV = [vOther[shift], vOther[(shift + 1) % 3], vOther[(shift + 2) % 3]];
+
+          const loc0 = moving.local[0], loc1 = moving.local[1];
+          const locAng = Math.atan2(loc1.r - loc0.r, loc1.c - loc0.c);
+          const tgtAng = Math.atan2(targetV[1].r - targetV[0].r, targetV[1].c - targetV[0].c);
+          const rotTgt = normAng(tgtAng - locAng);
+
+          const posTgt = {
+            c: (targetV[0].c + targetV[1].c + targetV[2].c) / 3,
+            r: (targetV[0].r + targetV[1].r + targetV[2].r) / 3
+          };
+
+          const testV = worldGrid(moving, posTgt, rotTgt);
+          const maxErr = Math.max(...testV.map((pt, i) => Math.hypot(pt.c - targetV[i].c, pt.r - targetV[i].r)));
+
+          if (maxErr < 0.25) {
+            const distPx = Math.hypot((moving.pos.c - posTgt.c) * state.cell, (moving.pos.r - posTgt.r) * state.cell);
+            const dAng = Math.abs(normAng(moving.rot - rotTgt));
+
+            if (distPx < 45 && dAng < 0.45) {
+              if (!bestSnap || distPx < bestSnap.distPx) {
+                bestSnap = { pos: posTgt, rot: rotTgt, distPx };
+              }
+            }
+          }
+        }
+
+        if (bestSnap) {
+          moving.pos = { ...bestSnap.pos };
+          moving.rot = bestSnap.rot;
+          if (!state.isSnapped) {
+            state.isSnapped = true;
+            updateUI();
+          }
+        } else {
+          if (state.isSnapped) {
+            state.isSnapped = false;
+            updateUI();
+          }
+        }
+      }
+
+      function onPointerDown(e) {
+        if (state.pointerId != null) return;
+        state.pointerId = e.pointerId;
+        const p = eventPos(e);
+
+        if (state.step === 1) {
+          const hitIdx = state.points.findIndex((pt) => {
+            const px = gridToPx(pt.c, pt.r);
+            return Math.hypot(px.x - p.x, px.y - p.y) < 24;
+          });
+
+          if (hitIdx >= 0) {
+            state.drag = { type: "vertex", index: hitIdx };
+          } else if (state.points.length < 4) {
+            const gridPt = alignGridPoint(p);
+            if (gridPt && !state.points.some(q => q.c === gridPt.c && q.r === gridPt.r)) {
+              state.points.push(gridPt);
+              updateUI();
+              draw();
+            }
+          }
+        } 
+        else if (state.step === 2) {
+          if (!state.isSplit) {
+            const gridPt = alignGridPoint(p);
+            if (gridPt) {
+              if (state.cutPoints.length < 2) {
+                state.cutPoints.push(gridPt);
+                updateUI();
+                draw();
+              }
+            }
+          } else {
+            // 允許對藍色與粉紅色兩個圖形進行獨立拖曳及旋轉
+            const pieces = [...state.pieces].reverse();
+
+            // 1. 優先檢查是否點擊任意圖形的「旋轉柄」
+            for (const piece of pieces) {
+              const rotHandle = rotationHandlePx(piece);
+              if (Math.hypot(p.x - rotHandle.x, p.y - rotHandle.y) < 26) {
+                const cenPx = gridToPx(piece.pos.c, piece.pos.r);
+                state.drag = {
+                  type: "rotate",
+                  piece: piece,
+                  startAng: piece.rot,
+                  baseAng: Math.atan2(p.y - cenPx.y, p.x - cenPx.x)
+                };
+                return;
+              }
+            }
+
+            // 2. 檢查是否點擊任意圖形內部進行平移
+            for (const piece of pieces) {
+              const pxs = worldPx(piece);
+              if (pointInPoly(p, pxs)) {
+                state.drag = {
+                  type: "move",
+                  piece: piece,
+                  startPos: { ...piece.pos },
+                  startPx: p
+                };
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      function onPointerMove(e) {
+        if (state.pointerId !== e.pointerId || !state.drag) return;
+        const p = eventPos(e);
+
+        if (state.drag.type === "vertex") {
+          const gridPt = alignGridPoint(p);
+          if (gridPt) {
+            state.points[state.drag.index] = gridPt;
+            updateUI();
+            draw();
+          }
+        } else if (state.drag.type === "move") {
+          const dx = (p.x - state.drag.startPx.x) / state.cell;
+          const dy = (p.y - state.drag.startPx.y) / state.cell;
+          state.drag.piece.pos = {
+            c: state.drag.startPos.c + dx,
+            r: state.drag.startPos.r + dy
+          };
+          checkSnap();
+          draw();
+        } else if (state.drag.type === "rotate") {
+          const cenPx = gridToPx(state.drag.piece.pos.c, state.drag.piece.pos.r);
+          const curAng = Math.atan2(p.y - cenPx.y, p.x - cenPx.x);
+          state.drag.piece.rot = normAng(state.drag.startAng + (curAng - state.drag.baseAng));
+          checkSnap();
+          draw();
+        }
+      }
+
+      function onPointerUp(e) {
+        if (state.pointerId === e.pointerId) {
+          state.pointerId = null;
+          state.drag = null;
+        }
+      }
+
+      function rotationHandlePx(piece) {
+        const minR = Math.min(...piece.local.map((v) => v.r));
+        const cos = Math.cos(piece.rot);
+        const sin = Math.sin(piece.rot);
+        const handleLocal = { c: 0, r: minR - 1.5 };
+        const qc = handleLocal.c * cos - handleLocal.r * sin;
+        const qr = handleLocal.c * sin + handleLocal.r * cos;
+        return gridToPx(piece.pos.c + qc, piece.pos.r + qr);
+      }
+
+      function pointInPoly(p, verts) {
+        let inside = false;
+        for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+          const xi = verts[i].x, yi = verts[i].y;
+          const xj = verts[j].x, yj = verts[j].y;
+          const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGrid();
+
+        if (state.step === 1) {
+          drawParallelogramStep1();
+        } else if (state.step === 2) {
+          drawStep2();
+        }
+      }
+
+      function drawGrid() {
+        const { cols, rows, cell, originX, originY } = state;
+        ctx.lineWidth = 1;
+
+        for (let c = 0; c <= cols; c++) {
+          const x = originX + c * cell;
+          ctx.strokeStyle = c % 5 === 0 ? COLORS.gridBold : COLORS.grid;
+          ctx.beginPath();
+          ctx.moveTo(x, originY);
+          ctx.lineTo(x, originY + rows * cell);
+          ctx.stroke();
+        }
+
+        for (let r = 0; r <= rows; r++) {
+          const y = originY + r * cell;
+          ctx.strokeStyle = r % 5 === 0 ? COLORS.gridBold : COLORS.grid;
+          ctx.beginPath();
+          ctx.moveTo(originX, y);
+          ctx.lineTo(originX + cols * cell, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawParallelogramStep1() {
+        const pts = state.points;
+
+        if (pts.length > 0) {
+          ctx.beginPath();
+          const first = gridToPx(pts[0].c, pts[0].r);
+          ctx.moveTo(first.x, first.y);
+          for (let i = 1; i < pts.length; i++) {
+            const p = gridToPx(pts[i].c, pts[i].r);
+            ctx.lineTo(p.x, p.y);
+          }
+
+          if (pts.length === 4) {
+            ctx.closePath();
+            ctx.fillStyle = COLORS.paraFill;
+            ctx.fill();
+          }
+
+          ctx.strokeStyle = COLORS.paraStroke;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+
+        if (pts.length === 3) {
+          const ghost = getGhostPoint(pts);
+          if (ghost && ghost.c >= 0 && ghost.c <= state.cols && ghost.r >= 0 && ghost.r <= state.rows) {
+            const pxG = gridToPx(ghost.c, ghost.r);
+            const pxA = gridToPx(pts[0].c, pts[0].r);
+            const pxC = gridToPx(pts[2].c, pts[2].r);
+
+            ctx.beginPath();
+            ctx.setLineDash([6, 6]);
+            ctx.moveTo(pxC.x, pxC.y);
+            ctx.lineTo(pxG.x, pxG.y);
+            ctx.lineTo(pxA.x, pxA.y);
+            ctx.strokeStyle = COLORS.ghost;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(pxG.x, pxG.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS.ghost;
+            ctx.fill();
+          }
+        }
+
+        pts.forEach((pt, i) => {
+          const p = gridToPx(pt.c, pt.r);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+          ctx.fillStyle = "#fff";
+          ctx.fill();
+          ctx.strokeStyle = COLORS.paraStroke;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.fillStyle = COLORS.ink;
+          ctx.font = "bold 14px sans-serif";
+          ctx.fillText(String.fromCharCode(65 + i), p.x + 10, p.y - 10);
+        });
+      }
+
+      function drawStep2() {
+        if (!state.isSplit) {
+          const [A, B, C, D] = state.points;
+          const pxA = gridToPx(A.c, A.r), pxB = gridToPx(B.c, B.r);
+          const pxC = gridToPx(C.c, C.r), pxD = gridToPx(D.c, D.r);
+
+          ctx.beginPath();
+          ctx.moveTo(pxA.x, pxA.y);
+          ctx.lineTo(pxB.x, pxB.y);
+          ctx.lineTo(pxC.x, pxC.y);
+          ctx.lineTo(pxD.x, pxD.y);
+          ctx.closePath();
+          ctx.fillStyle = COLORS.paraFill;
+          ctx.fill();
+          ctx.strokeStyle = COLORS.paraStroke;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          state.cutPoints.forEach((pt) => {
+            const px = gridToPx(pt.c, pt.r);
+            ctx.beginPath();
+            ctx.arc(px.x, px.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS.cutLine;
+            ctx.fill();
+          });
+
+          if (state.cutPoints.length === 2) {
+            const p1 = gridToPx(state.cutPoints[0].c, state.cutPoints[0].r);
+            const p2 = gridToPx(state.cutPoints[1].c, state.cutPoints[1].r);
+            ctx.beginPath();
+            ctx.setLineDash([6, 6]);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = COLORS.cutLine;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } else {
+          // 為藍色與粉紅色兩個圖形分別繪製多邊形與旋轉柄控制點
+          state.pieces.forEach((piece) => {
+            const pxs = worldPx(piece);
+            ctx.beginPath();
+            ctx.moveTo(pxs[0].x, pxs[0].y);
+            for (let i = 1; i < pxs.length; i++) {
+              ctx.lineTo(pxs[i].x, pxs[i].y);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = piece.fill;
+            ctx.fill();
+            ctx.strokeStyle = piece.stroke;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 為所有圖形均顯示專屬旋轉控制點
+            const hPx = rotationHandlePx(piece);
+            const cenPx = gridToPx(piece.pos.c, piece.pos.r);
+
+            ctx.beginPath();
+            ctx.moveTo(cenPx.x, cenPx.y);
+            ctx.lineTo(hPx.x, hPx.y);
+            ctx.strokeStyle = piece.stroke;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(hPx.x, hPx.y, 9, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff";
+            ctx.fill();
+            ctx.strokeStyle = piece.stroke;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          });
+        }
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

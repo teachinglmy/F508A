@@ -151,7 +151,7 @@
     .hint b { font-weight: 900; }
     .c-blue { color: var(--side-0); }
     .c-green { color: var(--primary); }
-    .c-red { color: var(--height); }
+    .c-red { color: #dc2626; }
 
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -188,6 +188,12 @@
     .btn-action {
       background: #d97706;
       border-color: #d97706;
+      color: #fff;
+    }
+
+    .btn-retry {
+      background: #ef4444;
+      border-color: #dc2626;
       color: #fff;
     }
 
@@ -286,6 +292,7 @@
       <div class="actions">
         <button type="button" id="btnReset" class="btn">重設</button>
         <button type="button" id="btnDoCut" class="btn btn-action" hidden>沿線分割</button>
+        <button type="button" id="btnClearCut" class="btn btn-retry" hidden>重新選取</button>
         <button type="button" id="btnResplit" class="btn btn-action" hidden>重新分割</button>
         <button type="button" id="btnTip" class="btn btn-tip" hidden>💡 錦囊</button>
         <button type="button" id="btnNext" class="btn btn-primary" disabled>下一步</button>
@@ -326,8 +333,8 @@
         ink: "#17324d",
         paraFill: "rgba(0, 87, 255, 0.18)",
         paraStroke: "#0057ff",
-        pieceA: "rgba(0, 87, 255, 0.8)",     // 80% 透明度 藍
-        pieceB: "rgba(255, 105, 180, 0.8)",   // 80% 透明度 粉紅 (#ff69b4)
+        pieceA: "rgba(0, 87, 255, 0.8)",     // 藍色 (80% 透明度)
+        pieceB: "rgba(255, 105, 180, 0.8)",   // 粉紅色 (80% 透明度)
         strokeA: "#0057ff",
         strokeB: "#e91e63",                  // 深粉紅邊框
         ghost: "rgba(0, 87, 255, 0.4)",
@@ -340,6 +347,7 @@
       const btnReset = document.getElementById("btnReset");
       const btnNext = document.getElementById("btnNext");
       const btnDoCut = document.getElementById("btnDoCut");
+      const btnClearCut = document.getElementById("btnClearCut");
       const btnResplit = document.getElementById("btnResplit");
       const btnTip = document.getElementById("btnTip");
       const tipBox = document.getElementById("tipBox");
@@ -362,6 +370,7 @@
         isSplit: false,
         isCongruent: false,
         isSnapped: false,
+        invalidCut: false,
         showTip: false,
         pieces: [],
 
@@ -379,6 +388,7 @@
         btnReset.addEventListener("click", resetAll);
         btnNext.addEventListener("click", goNext);
         btnDoCut.addEventListener("click", executeCut);
+        btnClearCut.addEventListener("click", clearCutPoints);
         btnResplit.addEventListener("click", resetSplit);
         btnTip.addEventListener("click", toggleTip);
 
@@ -393,11 +403,19 @@
         state.isSplit = false;
         state.isCongruent = false;
         state.isSnapped = false;
+        state.invalidCut = false;
         state.showTip = false;
         state.pieces = [];
         state.drag = null;
         state.pointerId = null;
 
+        updateUI();
+        draw();
+      }
+
+      function clearCutPoints() {
+        state.cutPoints = [];
+        state.invalidCut = false;
         updateUI();
         draw();
       }
@@ -469,6 +487,10 @@
         return { c: C.c - B.c + A.c, r: C.r - B.r + A.r };
       }
 
+      function samePt(p1, p2) {
+        return p1.c === p2.c && p1.r === p2.r;
+      }
+
       function toggleTip() {
         state.showTip = !state.showTip;
         tipBox.hidden = !state.showTip;
@@ -483,6 +505,7 @@
         mPoints.textContent = `${state.points.length} / 4`;
 
         btnDoCut.hidden = true;
+        btnClearCut.hidden = true;
         btnResplit.hidden = true;
         btnTip.hidden = true;
         tipBox.hidden = !state.showTip;
@@ -512,24 +535,24 @@
           btnNext.textContent = "已完成";
 
           if (!state.isSplit) {
-            if (state.cutPoints.length < 2) {
-              hintEl.innerHTML = `請在圖形上<b>選取 2 個點</b>畫出連線，嘗試進行分割。`;
+            if (state.invalidCut) {
+              hintEl.innerHTML = `<b class="c-red" style="font-size:18px;">分割出來的不是2個三角形</b>，請重新選取對角線上的 2 個頂點。`;
+              btnClearCut.hidden = false;
+            } else if (state.cutPoints.length < 2) {
+              hintEl.innerHTML = `請在圖形上<b>選取 2 個頂點</b>畫出對角線，嘗試進行分割。`;
             } else {
               hintEl.innerHTML = `已選擇 2 個點！請點擊上方<b>「沿線分割」</b>按鈕。`;
               btnDoCut.hidden = false;
+              btnClearCut.hidden = false;
             }
           } else {
-            if (state.isCongruent) {
-              if (state.isSnapped) {
-                hintEl.innerHTML = `你成功把一個平行四邊形分割成2個面積相同的三角形，那平行四邊形和三角形的面積有甚麼關係呢？`;
-                btnTip.hidden = false;
-              } else {
-                hintEl.innerHTML = `請<b>旋轉並拖曳</b>粉紅色或藍色三角形，嘗試將它們重疊。`;
-              }
+            if (state.isSnapped) {
+              hintEl.innerHTML = `你成功把一個平行四邊形分割成2個面積相同的三角形，那平行四邊形和三角形的面積有甚麼關係呢？`;
+              btnTip.hidden = false;
             } else {
-              hintEl.innerHTML = `<b class="c-red" style="font-size:18px;">這2個三角形不是完全相同</b>`;
-              btnResplit.hidden = false;
+              hintEl.innerHTML = `請<b>旋轉並拖曳</b>粉紅色或藍色三角形，嘗試將它們重疊。`;
             }
+            btnResplit.hidden = false;
           }
         }
       }
@@ -551,25 +574,27 @@
         const isAC = (samePt(P1, A) && samePt(P2, C)) || (samePt(P1, C) && samePt(P2, A));
         const isBD = (samePt(P1, B) && samePt(P2, D)) || (samePt(P1, D) && samePt(P2, B));
 
+        // 檢查選取的 2 個點是否為對角線（僅有對角線能分割成 2 個三角形）
+        if (!isAC && !isBD) {
+          state.invalidCut = true;
+          updateUI();
+          draw();
+          return;
+        }
+
+        // 成功進行對角線切割
+        state.invalidCut = false;
         state.isSplit = true;
+        state.isCongruent = true;
 
         if (isAC) {
-          state.isCongruent = true;
           createPieces([A, B, C], [C, D, A]);
         } else if (isBD) {
-          state.isCongruent = true;
           createPieces([A, B, D], [B, C, D]);
-        } else {
-          state.isCongruent = false;
-          createNonCongruentPieces(P1, P2);
         }
 
         updateUI();
         draw();
-      }
-
-      function samePt(p1, p2) {
-        return p1.c === p2.c && p1.r === p2.r;
       }
 
       function createPieces(ptsA, ptsB) {
@@ -587,29 +612,9 @@
           makePiece("b", ptsB, COLORS.pieceB, COLORS.strokeB)
         ];
 
+        // 預設將第二個圖形（粉紅）稍向右移以便識別
         state.pieces[1].pos.c += 2.5;
         state.pieces[1].pos.r += 0.5;
-      }
-
-      function createNonCongruentPieces(P1, P2) {
-        const [A, B, C, D] = state.points;
-        const pA = [A, B, P2, P1];
-        const pB = [P1, P2, C, D];
-
-        const getCen = (pts) => ({
-          c: pts.reduce((s, p) => s + p.c, 0) / pts.length,
-          r: pts.reduce((s, p) => s + p.r, 0) / pts.length
-        });
-
-        const cenA = getCen(pA);
-        const cenB = getCen(pB);
-
-        state.pieces = [
-          { id: "a", local: pA.map(p => ({ c: p.c - cenA.c, r: p.r - cenA.r })), pos: { ...cenA }, rot: 0, fill: COLORS.pieceA, stroke: COLORS.strokeA },
-          { id: "b", local: pB.map(p => ({ c: p.c - cenB.c, r: p.r - cenB.r })), pos: { ...cenB }, rot: 0, fill: COLORS.pieceB, stroke: COLORS.strokeB }
-        ];
-
-        state.pieces[1].pos.c += 2.5;
       }
 
       function resetSplit() {
@@ -617,6 +622,7 @@
         state.isSplit = false;
         state.isCongruent = false;
         state.isSnapped = false;
+        state.invalidCut = false;
         state.showTip = false;
         state.pieces = [];
         updateUI();
@@ -637,7 +643,7 @@
         return worldGrid(piece, pos, rot).map((g) => gridToPx(g.c, g.r));
       }
 
-      // 支援雙向動態檢測與磁吸
+      // 支援藍粉雙向動態磁吸與疊加檢測
       function checkSnap() {
         if (!state.isSplit || !state.isCongruent) return;
 
@@ -645,7 +651,6 @@
         const pB = state.pieces[1];
         if (!pA || !pB) return;
 
-        // 判斷當前被拖曳的圖形
         const moving = (state.drag && state.drag.piece) ? state.drag.piece : pB;
         const other = (moving === pA) ? pB : pA;
 
@@ -721,6 +726,10 @@
           if (!state.isSplit) {
             const gridPt = alignGridPoint(p);
             if (gridPt) {
+              if (state.invalidCut) {
+                state.cutPoints = [];
+                state.invalidCut = false;
+              }
               if (state.cutPoints.length < 2) {
                 state.cutPoints.push(gridPt);
                 updateUI();
@@ -731,7 +740,7 @@
             // 允許對藍色與粉紅色兩個圖形進行獨立拖曳及旋轉
             const pieces = [...state.pieces].reverse();
 
-            // 1. 優先檢查是否點擊任意圖形的「旋轉柄」
+            // 1. 檢查是否點擊任意圖形的「旋轉柄」
             for (const piece of pieces) {
               const rotHandle = rotationHandlePx(piece);
               if (Math.hypot(p.x - rotHandle.x, p.y - rotHandle.y) < 26) {
@@ -939,7 +948,7 @@
             const px = gridToPx(pt.c, pt.r);
             ctx.beginPath();
             ctx.arc(px.x, px.y, 8, 0, Math.PI * 2);
-            ctx.fillStyle = COLORS.cutLine;
+            ctx.fillStyle = state.invalidCut ? "#ef4444" : COLORS.cutLine;
             ctx.fill();
           });
 
@@ -950,7 +959,7 @@
             ctx.setLineDash([6, 6]);
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = COLORS.cutLine;
+            ctx.strokeStyle = state.invalidCut ? "#ef4444" : COLORS.cutLine;
             ctx.lineWidth = 4;
             ctx.stroke();
             ctx.setLineDash([]);
